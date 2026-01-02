@@ -1,0 +1,510 @@
+---
+title: "Fixed Final Project"
+output:
+  word_document: default
+  html_document: default
+date: "2025-11-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+#DATA CLEANING
+
+library(readxl)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(purrr)
+library(ggplot2)
+
+
+stars_path <- "..."
+files <- list.files(stars_path, pattern = "\\.xlsx$", full.names = TRUE)
+
+all_stars <- map_dfr(files, function(f) {
+  read_excel(f) %>%
+    mutate(term_file = basename(f))
+})
+
+# Clean names 
+stars <- all_stars %>% janitor::clean_names()
+
+
+passing <- c("A","A-","B+","B","B-","C+","C","C-")
+
+stars <- stars %>%
+  mutate(
+    final_grade = as.character(final_grade),
+    passed = final_grade %in% passing
+  )
+
+
+# academic_period is like "201509" or "201601"
+stars <- stars %>%
+  mutate(
+    academic_period = as.character(academic_period),
+    term_year  = as.integer(str_sub(academic_period, 1, 4)),
+    term_code2 = str_sub(academic_period, 5, 6),
+    term_date = case_when(
+      term_code2 == "09" ~ as.Date(paste0(term_year, "-09-01")),  # Fall
+      term_code2 == "01" ~ as.Date(paste0(term_year, "-01-01")),  # Winter
+      TRUE               ~ NA_Date_
+    )
+  ) %>%
+  filter(!is.na(term_date))  # drop Spring/Summer
+
+# ============================
+# 5. Tag ESP vs Regular for MAT 2010 & 2020 (by section)
+# ============================
+esp_sections <- c("510", "511", "512", "501")
+
+stars <- stars %>%
+  mutate(
+    subject    = as.character(subject),
+    course_no  = as.character(course_no),
+    section    = as.character(section),
+    instructor_name = as.character(instructor_name),
+    program_type = case_when(
+      subject == "MAT" & course_no %in% c("2010","2020") &
+        section %in% esp_sections ~ "ESP",
+      subject == "MAT" & course_no %in% c("2010","2020") ~ "Regular",
+      TRUE ~ NA_character_
+    )
+  )
+
+# ============================
+# 6. ESP Instructors for MAT 1800
+#      (rename flag to avoid program_tag confusion)
+# ============================
+esp_instructors_1800 <- tibble::tribble(
+  ~academic_period, ~subject, ~course_no, ~instructor_name,           ~esp_flag,
+  "201509",      "MAT",    "1800",     "Nazelli, Christopher",        "ESP",
+  "201509",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201601",      "MAT",    "1800",     "Nazelli, Christopher",        "ESP",
+  "201601",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201609",      "MAT",    "1800",     "Pineau, Richard",             "ESP",
+  "201609",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201701",      "MAT",    "1800",     "Balawi, Dalaal",              "ESP",
+  "201701",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201709",      "MAT",    "1800",     "Sherry, Donald",              "ESP",
+  "201709",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201801",      "MAT",    "1800",     "Klakulak, Melinda",           "ESP",
+  "201801",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201809",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
+  "201809",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201901",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
+  "201901",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "201909",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
+  "201909",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
+  "202001",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
+  "202001",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
+  "202009",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
+  "202101",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
+  "202109",      "MAT",    "1800",     "Martell, Raul",               "ESP",
+  "202109",      "MAT",    "1800",     "Pacheco, Omar M.",            "ESP",
+  "202201",      "MAT",    "1800",     "Martell, Raul",               "ESP",
+  "202209",      "MAT",    "1800",     "Martell, Raul",               "ESP",
+  "202301",      "MAT",    "1800",     "Freed, Emily B.",             "ESP",
+  "202309",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
+  "202401",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
+  "202409",      "MAT",    "1800",     "Graziana, Anne M.",           "ESP",
+  "202501",      "MAT",    "1800",     "Nazelli, Christopher D.",     "ESP",
+  "202509",      "MAT",    "1800",     "Graziana, Anne M.",           "ESP"
+)
+
+# Join using cleaned instructor names (lowercase + squished)
+stars <- stars %>%
+  mutate(
+    academic_period = as.character(academic_period),
+    subject         = as.character(subject),
+    course_no       = as.character(course_no),
+    instructor_name = as.character(instructor_name),
+    instructor_name_clean = str_to_lower(str_squish(instructor_name))
+  ) %>%
+  left_join(
+    esp_instructors_1800 %>%
+      mutate(
+        academic_period = as.character(academic_period),
+        subject         = as.character(subject),
+        course_no       = as.character(course_no),
+        instructor_name_clean = str_to_lower(str_squish(instructor_name))
+      ) %>%
+      select(academic_period, subject, course_no, instructor_name_clean, esp_flag),
+    by = c("academic_period", "subject", "course_no", "instructor_name_clean")
+  ) %>%
+  mutate(
+    program_type = case_when(
+      !is.na(program_type) ~ program_type,   # keep 2010/2020 ESP/Regular
+      !is.na(esp_flag)     ~ "ESP",          # tag 1800 ESP instructors
+      TRUE                 ~ program_type
+    )
+  )
+
+# ============================
+# 7. Keep Only MAT 1800/2010/2020 ESP/Regular
+# ============================
+stars_mat <- stars %>%
+  filter(
+    subject == "MAT",
+    course_no %in% c("1800","2010","2020"),
+    program_type %in% c("ESP","Regular")
+  )
+
+# ============================
+# 8. Define “Sequence Retention”:
+#    1800 -> 2010 (same program)
+#    2010 -> 2020 (same program)
+#    within 1 year
+# ============================
+stars_mat <- stars_mat %>%
+  arrange(id, term_date) %>%
+  group_by(id) %>%
+  mutate(
+    next_term_date = lead(term_date),
+    next_course    = lead(course_no),
+    next_program   = lead(program_type),
+    retained_seq   = case_when(
+      # ESP path: 1800 ESP -> 2010 ESP within 1 year
+      program_type == "ESP" & course_no == "1800" &
+        next_program == "ESP" & next_course == "2010" &
+        !is.na(next_term_date) &
+        next_term_date <= term_date + years(1) ~ TRUE,
+      # ESP path: 2010 ESP -> 2020 ESP within 1 year
+      program_type == "ESP" & course_no == "2010" &
+        next_program == "ESP" & next_course == "2020" &
+        !is.na(next_term_date) &
+        next_term_date <= term_date + years(1) ~ TRUE,
+      # Regular path: 1800 Regular -> 2010 Regular within 1 year
+      program_type == "Regular" & course_no == "1800" &
+        next_program == "Regular" & next_course == "2010" &
+        !is.na(next_term_date) &
+        next_term_date <= term_date + years(1) ~ TRUE,
+      # Regular path: 2010 Regular -> 2020 Regular within 1 year
+      program_type == "Regular" & course_no == "2010" &
+        next_program == "Regular" & next_course == "2020" &
+        !is.na(next_term_date) &
+        next_term_date <= term_date + years(1) ~ TRUE,
+      TRUE ~ FALSE
+    )
+  ) %>%
+  ungroup()
+
+# ============================
+# 9. Aggregate to Retention by Term & Program
+# ============================
+retention_by_term <- stars_mat %>%
+  group_by(term_date, program_type) %>%
+  summarise(
+    n_students    = n_distinct(id),
+    n_retained    = n_distinct(id[retained_seq]),
+    retention_rate = n_retained / n_students,
+    .groups = "drop"
+  )
+
+retention_by_term
+
+```
+
+```{r}
+ggplot(retention_by_term,
+       aes(x = term_date, y = retention_rate,
+           color = program_type)) +
+  geom_line() +
+  geom_point(aes(size = n_students)) +
+  labs(
+    title = "Sequence Retention (1800→2010→2020) by Program",
+    x = "Term",
+    y = "Retention rate (within 1 year, next course in sequence)",
+    color = "Program",
+    size = "N students"
+  ) +
+  theme_minimal()
+
+table(retention_by_term$program_type)
+summary(retention_by_term$retention_rate)
+
+
+```
+Present the Descriptive Statistics:
+A student is counted as retained if they take the next ESP course in the sequence within one year. 
+
+```{r}
+esp_ts <- ts(
+  subset(retention_by_term, program_type == "ESP")$retention_rate,
+  start = c(2015,1),
+  frequency = 2
+)
+
+regular_ts <- ts(
+  subset(retention_by_term, program_type == "Regular")$retention_rate,
+  start = c(2015,1),
+  frequency = 2
+)
+
+library(forecast)
+
+ggAcf(esp_ts) ; ggPacf(esp_ts)
+ggAcf(regular_ts) ; ggPacf(regular_ts)
+
+library(tseries)
+
+adf.test(esp_ts)
+adf.test(regular_ts)
+
+esp_diff  <- diff(esp_ts)
+regular_diff <- diff(regular_ts)
+
+ggAcf(esp_diff); ggPacf(esp_diff)
+
+
+```
+
+ESP Time Series ADF TEST:
+Dickey-Fuller= -4.083
+p-Value= 0.02036
+Conclusion: Stationary
+
+Since our p-value is <0.05 we reject the NUll hypothesis thus the ESP retention rates flucuate but do not show a long term upward or downward trend.
+
+ESP ACF:
+No large spikes beyond the signifiance level
+
+ESP PACF:
+No large jumps except for maybe a tiny one aroudn lag 6 
+
+Meaning: ESP does not have a strong autocorrelation structure. Retention of one term does not predict retention in the next term. Weakly stationary/ white noise(ish)
+We can use ARIMA(0,0,0)
+
+ADF for Regualr:
+Dickey-Fuler=-1.3022
+p-Value=0.8383
+COnclusion: Not Stationary
+
+p>0.05 we cannot reject so retention of regular sectiosn is not stationary. Regular retention bounces around like we would expect with strong seasonality.
+
+Regular ACF: 
+Large spikes at lag2, 4, 6, 8... classic with seasonality period of 2
+
+Regualr PACF: 
+Big spike at lag 1 or 2 then dies off
+
+Regular students show a predicatble repeated pattern with each academic year.ARIMA picked a seasonal model.
+
+
+```{r}
+#model Fitting
+auto.arima(esp_ts)
+auto.arima(regular_ts)
+
+
+```
+```{r}
+#This will be testing if being in ESP keeps students in MATHEMATICS programs in general...
+
+library(dplyr)
+library(lubridate)
+
+# Keep only MAT 1800/2010/2020 and labeled programs
+stars_mat <- stars %>%
+  filter(
+    subject == "MAT",
+    course_no %in% c("1800", "2010", "2020"),
+    program_type %in% c("ESP", "Regular")
+  )
+
+# Collapse to one record per student–term–program
+episodes <- stars_mat %>%
+  arrange(id, term_date) %>%
+  group_by(id, term_date, program_type) %>%
+  summarise(
+    passed_any = TRUE,
+    .groups = "drop"
+  )
+
+episodes <- episodes %>%
+  arrange(id, term_date) %>%
+  group_by(id) %>%
+  mutate(
+    next_term_date = lead(term_date),
+    retained_within_1yr_any = !is.na(next_term_date) &
+      (next_term_date <= term_date + years(1))
+  ) %>%
+  ungroup()
+retention_broad <- episodes %>%
+  group_by(term_date, program_type) %>%
+  summarise(
+    n_students    = n_distinct(id),
+    n_retained    = n_distinct(id[retained_within_1yr_any]),
+    retention_rate = n_retained / n_students,
+    .groups = "drop"
+  )
+
+retention_broad
+retention_broad <- episodes %>%
+  filter(passed_any) %>%        # <-- keep only passers
+  group_by(term_date, program_type) %>%
+  summarise(
+    n_students    = n_distinct(id),
+    n_retained    = n_distinct(id[retained_within_1yr_any]),
+    retention_rate = n_retained / n_students,
+    .groups = "drop"
+  )
+ggplot(retention_broad,
+       aes(x = term_date, y = retention_rate,
+           color = program_type)) +
+  geom_line() +
+  geom_point(aes(size = n_students)) +
+  labs(
+    title = "Broad Retention (within 1 year, any MAT course)",
+    x = "Term",
+    y = "Retention rate",
+    color = "Program",
+    size  = "N students"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+#ACF and PACF Broad
+library(forecast)
+
+retention_broad_clean <- retention_broad %>%
+  group_by(program_type) %>%
+  # Filter out the last row (n()) for each program's time series
+  filter(row_number() <= n() - 1) %>% 
+  ungroup()
+# ESP time series
+esp_ts <- ts(
+  subset(retention_broad_clean, program_type == "ESP")$retention_rate,
+  start = c(2015, 1),
+  frequency = 2   # Fall/Winter
+)
+
+# Regular time series
+regular_ts <- ts(
+  subset(retention_broad_clean, program_type == "Regular")$retention_rate,
+  start = c(2015, 1),
+  frequency = 2
+)
+# ESP ACF & PACF
+ggAcf(esp_ts) + ggtitle("ACF: ESP Broad Retention")
+ggPacf(esp_ts) + ggtitle("PACF: ESP Broad Retention")
+
+# Regular ACF & PACF
+ggAcf(regular_ts) + ggtitle("ACF: Regular Broad Retention")
+ggPacf(regular_ts) + ggtitle("PACF: Regular Broad Retention")
+
+
+
+```
+
+```{r}
+
+esp_arima <- auto.arima(esp_ts, seasonal = TRUE)
+regular_arima <- auto.arima(regular_ts, seasonal = TRUE)
+```
+
+```{r}
+#Holt-Winters
+library(forecast)
+
+# ETS (Holt-Winters) models
+esp_ets <- ets(esp_ts, model = "AAN")
+regular_ets <- ets(regular_ts, model = "AAN")
+
+summary(esp_ets)
+summary(regular_ets)
+
+
+
+```
+
+
+```{r}
+library(AICcmodavg)
+#Compare AIC/AICc
+benchmark_results <- tibble::tibble(
+  Model = c("ESP_ARIMA", "ESP_ETS", "REG_ARIMA", "REG_ETS"),
+  AIC   = c(AIC(esp_arima), AIC(esp_ets), AIC(regular_arima), AIC(regular_ets)),
+  AICc  = c(esp_arima$aicc, esp_ets$aicc, regular_arima$aicc, regular_ets$aicc)
+)
+
+benchmark_results
+
+ggAcf(residuals(esp_arima)) + ggtitle("ESP ARIMA Residual ACF")
+ggAcf(residuals(esp_ets)) + ggtitle("ESP ETS Residual ACF")
+
+ggAcf(residuals(regular_arima)) + ggtitle("Regular ARIMA Residual ACF")
+ggAcf(residuals(regular_ets)) + ggtitle("Regular ETS Residual ACF")
+
+```
+
+
+```{r}
+# Histogram
+hist(residuals(esp_arima), main="ESP ARIMA Residuals", xlab="Residuals")
+hist(residuals(regular_arima), main="Regular ARIMA Residuals", xlab="Residuals")
+
+# QQ-plot
+qqnorm(residuals(esp_arima)); qqline(residuals(esp_arima))
+qqnorm(residuals(regular_arima)); qqline(residuals(regular_arima))
+
+# Statistical normality test
+shapiro.test(residuals(esp_arima))
+shapiro.test(residuals(regular_arima))
+
+
+```
+The QQ-plots show that residuals align closely with the theoretical normal line, suggesting approximate normality.
+
+
+
+Since ARIMA forecasting is robust to mild departures from normality, these results support the model assumptions.
+
+
+```{r}
+# Residual diagnostics for ESP ARIMA
+checkresiduals(esp_arima)
+
+# Residual diagnostics for ESP ETS
+checkresiduals(esp_ets)
+
+
+```
+
+```{r}
+esp_forecast <- forecast(esp_arima, h = 3, level = c(80, 95))
+regular_forecast <- forecast(regular_arima, h = 3, level = c(80, 95))
+# ESP Forecast Plot
+plot(esp_forecast, 
+     main = "ESP Broad Retention Forecast (3 Terms)", 
+     xlab = "Year", 
+     ylab = "Retention Rate",
+     ylim = c(0, 1))
+lines(esp_ts, col = "red") 
+legend("topright", legend = c("Historical ESP", "Forecast"), col = c("red", "blue"), lty = 1)
+
+
+# Regular Forecast Plot
+plot(regular_forecast, 
+     main = "Regular Broad Retention Forecast (3 Terms)", 
+     xlab = "Year", 
+     ylab = "Retention Rate",
+     ylim = c(0, 1))
+lines(regular_ts, col = "red")
+legend("topright", legend = c("Historical Regular", "Forecast"), col = c("red", "blue"), lty = 1)
+
+
+```
+
+
+```{r}
+
+
+```
