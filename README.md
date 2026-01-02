@@ -21,4 +21,5 @@ This project analyzes student retention and performance trends across multiple a
 - Produced summary tables and visualizations for reporting
 
 ## Files
-- `analysis.R` – R-based exploration
+- `retention_analysis.R` – R script analyzing retention and passing rates by program type.
+- 'analysis.Rmd' - Reproducible analysis with code, plots, and commentary
