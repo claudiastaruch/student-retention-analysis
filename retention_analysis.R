@@ -88,38 +88,7 @@ stars <- stars %>%
 # ============================
 esp_instructors_1800 <- tibble::tribble(
   ~academic_period, ~subject, ~course_no, ~instructor_name,           ~esp_flag,
-  "201509",      "MAT",    "1800",     "Nazelli, Christopher",        "ESP",
-  "201509",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201601",      "MAT",    "1800",     "Nazelli, Christopher",        "ESP",
-  "201601",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201609",      "MAT",    "1800",     "Pineau, Richard",             "ESP",
-  "201609",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201701",      "MAT",    "1800",     "Balawi, Dalaal",              "ESP",
-  "201701",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201709",      "MAT",    "1800",     "Sherry, Donald",              "ESP",
-  "201709",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201801",      "MAT",    "1800",     "Klakulak, Melinda",           "ESP",
-  "201801",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201809",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
-  "201809",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201901",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
-  "201901",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "201909",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
-  "201909",      "MAT",    "1800",     "Mahabir, Naresh V.",          "ESP",
-  "202001",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
-  "202001",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
-  "202009",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
-  "202101",      "MAT",    "1800",     "Lanni, Melinda",              "ESP",
-  "202109",      "MAT",    "1800",     "Martell, Raul",               "ESP",
-  "202109",      "MAT",    "1800",     "Pacheco, Omar M.",            "ESP",
-  "202201",      "MAT",    "1800",     "Martell, Raul",               "ESP",
-  "202209",      "MAT",    "1800",     "Martell, Raul",               "ESP",
-  "202301",      "MAT",    "1800",     "Freed, Emily B.",             "ESP",
-  "202309",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
-  "202401",      "MAT",    "1800",     "Flores, Samantha l.",         "ESP",
-  "202409",      "MAT",    "1800",     "Graziana, Anne M.",           "ESP",
-  "202501",      "MAT",    "1800",     "Nazelli, Christopher D.",     "ESP",
-  "202509",      "MAT",    "1800",     "Graziana, Anne M.",           "ESP"
+"..."
 )
 
 # Join using cleaned instructor names (lowercase + squished)
@@ -510,6 +479,7 @@ legend("topright", legend = c("Historical Regular", "Forecast"), col = c("red", 
 
 
 ```{r}
+
 
 
 ```
